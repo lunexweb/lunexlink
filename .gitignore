@@ -1,0 +1,28 @@
+# Downloaded videos
+downloads/
+*.mp4
+*.webm
+*.mkv
+*.flv
+*.avi
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -97,6 +97,57 @@
             font-size: 14px;
         }
 
+        .divider {
+            text-align: center;
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 100%;
+            height: 1px;
+            background: #e0e0e0;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 15px;
+            color: #999;
+            position: relative;
+            z-index: 1;
+        }
+
+        .file-input {
+            padding: 12px !important;
+            border: 2px dashed #667eea !important;
+            background: #f8f9ff;
+            cursor: pointer;
+        }
+
+        .file-input:hover {
+            border-color: #764ba2 !important;
+            background: #f0f2ff;
+        }
+
+        .select-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .select-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
         .btn {
             width: 100%;
             padding: 16px;
@@ -265,8 +316,8 @@
     <div class="container">
         <div class="header">
             <div class="icon">🎬</div>
-            <h1>Video Downloader</h1>
-            <p>Download videos from any website in high quality</p>
+            <h1>Video Downloader & Image Upscaler</h1>
+            <p>Download videos from any website or upscale images to 4K/8K</p>
         </div>
 
         <form id="downloadForm">
@@ -293,6 +344,44 @@
             </button>
         </form>
 
+        <div class="divider">
+            <span>OR</span>
+        </div>
+
+        <form id="upscaleForm" enctype="multipart/form-data">
+            <div class="input-group">
+                <label for="imageFile">Upload Image to Upscale</label>
+                <input 
+                    type="file" 
+                    id="imageFile" 
+                    name="image" 
+                    accept="image/*"
+                    class="file-input"
+                >
+            </div>
+
+            <div class="input-group">
+                <label for="resolution">Target Resolution</label>
+                <select id="resolution" name="resolution" class="select-input">
+                    <option value="2k">2K (2560x1440)</option>
+                    <option value="4k" selected>4K (3840x2160)</option>
+                    <option value="8k">8K (7680x4320)</option>
+                    <option value="hd">HD (1920x1080)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enhance" name="enhance" checked>
+                    <span class="checkbox-text">✨ Enhance quality (sharpen, denoise, color)</span>
+                </label>
+            </div>
+
+            <button type="submit" class="btn" id="upscaleBtn">
+                Upscale Image
+            </button>
+        </form>
+
         <div class="progress" id="progress">
             <p class="progress-text" id="progressText">Processing video...</p>
             <div class="progress-bar">
@@ -307,10 +396,10 @@
             <h3>Features</h3>
             <div class="feature-list">
                 <div class="feature-item">High quality downloads</div>
-                <div class="feature-item">Smart AI watermark removal</div>
+                <div class="feature-item">AI image upscaling</div>
                 <div class="feature-item">1000+ sites supported</div>
+                <div class="feature-item">2K/4K/8K upscale</div>
                 <div class="feature-item">Fast & secure</div>
-                <div class="feature-item">Corner watermark cleanup</div>
                 <div class="feature-item">Free & open source</div>
             </div>
         </div>
@@ -416,6 +505,66 @@
             status.className = `status ${type}`;
             status.style.display = 'block';
         }
+
+        // Image upscaler form
+        const upscaleForm = document.getElementById('upscaleForm');
+        const upscaleBtn = document.getElementById('upscaleBtn');
+
+        upscaleForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('imageFile');
+            const resolution = document.getElementById('resolution').value;
+            const enhance = document.getElementById('enhance').checked;
+
+            if (!fileInput.files[0]) {
+                showStatus('Please select an image file', 'error');
+                return;
+            }
+
+            // Show progress
+            upscaleBtn.disabled = true;
+            upscaleBtn.textContent = 'Upscaling Image...';
+            progress.style.display = 'block';
+            status.style.display = 'none';
+            progressText.textContent = 'Upscaling to ' + resolution.toUpperCase() + '...';
+            progressInfo.textContent = 'Enhancing quality...';
+            progressFill.style.width = '50%';
+
+            // Create form data
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            formData.append('resolution', resolution);
+            formData.append('enhance', enhance);
+
+            try {
+                const response = await fetch('/api/upscale', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Complete! 100%';
+
+                if (response.ok) {
+                    showStatus(
+                        `✅ Image upscaled to ${resolution.toUpperCase()}! <a href="${data.download_url}" class="download-link">Download Image</a>`,
+                        'success'
+                    );
+                } else {
+                    showStatus(`❌ Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                upscaleBtn.disabled = false;
+                upscaleBtn.textContent = 'Upscale Image';
+                setTimeout(() => {
+                    progress.style.display = 'none';
+                }, 3000);
+            }
+        });
     </script>
 </body>
 </html>

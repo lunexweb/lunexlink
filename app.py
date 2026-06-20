@@ -9,6 +9,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import tempfile
 import uuid
+from io import BytesIO
+from image_upscaler import ImageUpscaler
 
 # Watermark remover only works locally, not on Vercel
 WATERMARK_ENABLED = False
@@ -275,6 +277,45 @@ def get_info():
             'success': True,
             'status': 'URL is accessible',
             'size': len(response.content)
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/upscale', methods=['POST'])
+def upscale_image():
+    try:
+        # Check if file was uploaded
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        # Get resolution parameter
+        resolution = request.form.get('resolution', '4k')
+        enhance = request.form.get('enhance', 'true').lower() == 'true'
+        
+        # Read image bytes
+        image_bytes = file.read()
+        
+        # Upscale image
+        upscaler = ImageUpscaler()
+        output_bytes, filename = upscaler.upscale_from_bytes(image_bytes, resolution, enhance)
+        
+        # Save to temp directory
+        output_path = app.config['UPLOAD_FOLDER'] / filename
+        with open(output_path, 'wb') as f:
+            f.write(output_bytes)
+        
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'download_url': f'/api/file/{filename}',
+            'message': f'Image upscaled to {resolution}!'
         })
     
     except Exception as e:

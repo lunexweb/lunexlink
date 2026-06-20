@@ -46,11 +46,32 @@ class VideoDownloader:
         })
     
     def download(self, url):
-        """Download video and return file path"""
+        """Download video - tries yt-dlp first, then direct extraction"""
         parsed = urlparse(url)
         self.session.headers['Referer'] = f"{parsed.scheme}://{parsed.netloc}/"
         
-        # Get page content
+        # Try yt-dlp first (handles JavaScript sites better)
+        try:
+            import yt_dlp
+            print("🔍 Trying yt-dlp...")
+            
+            ydl_opts = {
+                'outtmpl': str(self.output_dir / '%(title)s.%(ext)s'),
+                'format': 'best',
+                'quiet': True,
+                'no_warnings': True,
+            }
+            
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info)
+                if os.path.exists(filename):
+                    print("✅ yt-dlp success!")
+                    return Path(filename)
+        except Exception as e:
+            print(f"⚠️ yt-dlp failed, trying direct extraction...")
+        
+        # Fallback: direct extraction
         response = self.session.get(url, timeout=30)
         response.raise_for_status()
         html = response.text

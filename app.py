@@ -45,12 +45,12 @@ class VideoDownloader:
             'Referer': '',
         })
     
-    def download(self, url):
-        """Download video - tries yt-dlp first, then direct extraction"""
+    def download(self, url, timeout=8):
+        """Download video - optimized for serverless with timeout"""
         parsed = urlparse(url)
         self.session.headers['Referer'] = f"{parsed.scheme}://{parsed.netloc}/"
         
-        # Try yt-dlp first (handles JavaScript sites better)
+        # Try yt-dlp with strict timeout (for serverless)
         try:
             import yt_dlp
             print("🔍 Trying yt-dlp...")
@@ -60,6 +60,8 @@ class VideoDownloader:
                 'format': 'best',
                 'quiet': True,
                 'no_warnings': True,
+                'socket_timeout': timeout,
+                'retries': 1,
             }
             
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -69,29 +71,30 @@ class VideoDownloader:
                     print("✅ yt-dlp success!")
                     return Path(filename)
         except Exception as e:
-            print(f"⚠️ yt-dlp failed, trying direct extraction...")
+            print(f"⚠️ yt-dlp failed: {str(e)[:100]}")
         
         # Fallback: direct extraction
-        response = self.session.get(url, timeout=30)
+        print("🔄 Direct extraction...")
+        response = self.session.get(url, timeout=timeout)
         response.raise_for_status()
         html = response.text
         
-        # Extract video URLs
         video_urls = self._extract_video_urls(html, url)
         
         if not video_urls:
-            raise Exception("No video URLs found in page")
+            raise Exception("No video URLs found. Try YouTube, Vimeo, or TikTok links.")
         
         # Try downloading
-        for video_url in video_urls:
+        for video_url in video_urls[:3]:  # Limit to 3 attempts
             try:
-                file_path = self._download_file(video_url, url)
+                file_path = self._download_file(video_url, url, timeout)
                 if file_path:
                     return file_path
-            except:
+            except Exception as e:
+                print(f"Failed URL: {str(e)[:50]}")
                 continue
         
-        raise Exception("Failed to download from any source")
+        raise Exception("Failed to download. Try a different video site.")
     
     def _extract_video_urls(self, html, base_url):
         """Extract video URLs from HTML"""
@@ -164,16 +167,16 @@ class VideoDownloader:
         url_lower = url.lower()
         return any(ext in url_lower for ext in video_extensions)
     
-    def _download_file(self, url, referer):
-        """Download file"""
+    def _download_file(self, url, referer, timeout=8):
+        """Download file with timeout"""
         self.session.headers['Referer'] = referer
         
         # Generate unique filename
         filename = self._get_filename(url)
         output_path = self.output_dir / filename
         
-        # Download
-        response = self.session.get(url, stream=True, timeout=30)
+        # Download with timeout
+        response = self.session.get(url, stream=True, timeout=timeout)
         response.raise_for_status()
         
         with open(output_path, 'wb') as f:
@@ -215,9 +218,9 @@ def download_video():
         if not url.startswith('http'):
             return jsonify({'error': 'Invalid URL format'}), 400
         
-        # Download video
+        # Download video with serverless timeout
         downloader = VideoDownloader(app.config['UPLOAD_FOLDER'])
-        file_path = downloader.download(url)
+        file_path = downloader.download(url, timeout=8)
         
         # Remove watermark if requested and available
         if remove_watermark and WATERMARK_ENABLED:

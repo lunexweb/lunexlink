@@ -86,13 +86,22 @@ class VideoDownloader:
             matches = re.findall(pattern, html, re.IGNORECASE)
             video_urls.extend(matches)
         
-        # Pattern 2: JavaScript patterns
+        # Pattern 2: JavaScript patterns (enhanced)
         js_patterns = [
-            r'["\'](https?://[^"\']*\.(?:mp4|webm|m3u8|mpd)[^"\']*)["\']',
-            r'src["\']\s*:\s*["\']([^"\']+\.(?:mp4|webm|m3u8))["\']',
-            r'url["\']\s*:\s*["\']([^"\']+\.(?:mp4|webm|m3u8))["\']',
-            r'video["\']\s*:\s*["\']([^"\']+)["\']',
-            r'videoUrl["\']\s*:\s*["\']([^"\']+)["\']',
+            r'["\'](https?://[^"\']*\.(?:mp4|webm|m3u8|mpd|mov)[^"\']*)["\']',
+            r'src["\']\s*[:=]\s*["\']([^"\']+\.(?:mp4|webm|m3u8))["\']',
+            r'url["\']\s*[:=]\s*["\']([^"\']+\.(?:mp4|webm|m3u8))["\']',
+            r'video["\']\s*[:=]\s*["\']([^"\']+)["\']',
+            r'videoUrl["\']\s*[:=]\s*["\']([^"\']+)["\']',
+            r'videoSrc["\']\s*[:=]\s*["\']([^"\']+)["\']',
+            r'file["\']\s*[:=]\s*["\']([^"\']+)["\']',
+            # AWS/CDN patterns
+            r'(https?://[^"\']*\.(?:cloudfront|amazonaws|s3)[^"\']*\.(?:mp4|webm)[^"\']*)',
+            # JSON patterns
+            r'"videoUrl"\s*:\s*"([^"]+)"',
+            r'"video"\s*:\s*"([^"]+\.(?:mp4|webm))"',
+            r'"url"\s*:\s*"([^"]+\.(?:mp4|webm))"',
+            r'"src"\s*:\s*"([^"]+\.(?:mp4|webm))"',
         ]
         
         for pattern in js_patterns:
@@ -108,6 +117,7 @@ class VideoDownloader:
                 url = url.replace('\\u0026', '&')
                 url = url.replace('\\u003d', '=')
                 url = url.replace('\\u003f', '?')
+                url = url.replace('\\/', '/')
             except:
                 pass
             
@@ -116,11 +126,12 @@ class VideoDownloader:
             elif url.startswith('//'):
                 absolute_urls.append('https:' + url)
         
-        # Remove duplicates
+        # Remove duplicates and filter
         seen = set()
         unique_urls = []
         for url in absolute_urls:
-            if url not in seen and self._is_valid_video_url(url):
+            # Also check for CDN patterns
+            if url not in seen and (self._is_valid_video_url(url) or 'cloudfront' in url or 's3.amazonaws' in url):
                 seen.add(url)
                 unique_urls.append(url)
         

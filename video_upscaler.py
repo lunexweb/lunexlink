@@ -6,12 +6,35 @@ Upscale videos to 1080p, 2K, 4K with quality enhancement
 
 import subprocess
 import os
+import shutil
 from pathlib import Path
 
 
 class VideoUpscaler:
     def __init__(self):
         self.supported_formats = ['.mp4', '.avi', '.mov', '.mkv', '.webm']
+        # Try to find FFmpeg in common locations
+        self.ffmpeg_path = self._find_ffmpeg()
+    
+    def _find_ffmpeg(self):
+        """Find FFmpeg executable"""
+        # First try system PATH
+        ffmpeg = shutil.which('ffmpeg')
+        if ffmpeg:
+            return ffmpeg
+        
+        # Try common Windows install locations
+        common_paths = [
+            r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+            r"C:\ffmpeg\bin\ffmpeg.exe",
+            os.path.expanduser(r"~\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe"),
+        ]
+        
+        for path in common_paths:
+            if os.path.exists(path):
+                return path
+        
+        return 'ffmpeg'  # Fallback to system PATH
     
     def upscale(self, video_path, target_resolution='1080p', enhance=True, aspect_ratio='original'):
         """
@@ -51,7 +74,7 @@ class VideoUpscaler:
         
         # Build FFmpeg command
         cmd = [
-            'ffmpeg',
+            self.ffmpeg_path,
             '-i', str(video_path),
             '-vf', scale_filter,
             '-c:v', 'libx264',
@@ -63,12 +86,12 @@ class VideoUpscaler:
         ]
         
         try:
-            print("⚙️ Processing with FFmpeg...")
+            print(f"⚙️ Processing with FFmpeg ({self.ffmpeg_path})...")
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             print(f"✅ Upscaled video saved: {output_path}")
             return output_path
         except FileNotFoundError:
-            raise Exception("FFmpeg not installed. Install from: https://ffmpeg.org/download.html")
+            raise Exception(f"FFmpeg not found at: {self.ffmpeg_path}. Install from: https://ffmpeg.org/download.html")
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr if e.stderr else str(e)
             raise Exception(f"FFmpeg error: {error_msg[:300]}")

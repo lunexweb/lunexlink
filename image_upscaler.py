@@ -184,6 +184,45 @@ class ImageUpscaler:
         return img.resize((target_w, target_h), Image.Resampling.LANCZOS)
     
     def _get_target_dimensions(self, target_resolution, original_size, aspect_ratio='original'):
+        """Get target width and height based on resolution preset and aspect ratio"""
+        resolutions = {
+            '2k': (2560, 1440),
+            '4k': (3840, 2160),
+            '8k': (7680, 4320),
+            'hd': (1920, 1080),
+            'fullhd': (1920, 1080),
+            '1080p': (1920, 1080),
+            '720p': (1280, 720),
+        }
+        
+        if target_resolution.lower() in resolutions:
+            base_w, base_h = resolutions[target_resolution.lower()]
+        else:
+            # Default to 4K
+            base_w, base_h = resolutions['4k']
+        
+        if aspect_ratio == 'original':
+            # Maintain original aspect ratio
+            original_w, original_h = original_size
+            aspect_ratio_val = original_w / original_h
+            
+            # Fit to target while maintaining aspect ratio
+            if base_w / base_h > aspect_ratio_val:
+                # Height is limiting factor
+                final_h = base_h
+                final_w = int(base_h * aspect_ratio_val)
+            else:
+                # Width is limiting factor
+                final_w = base_w
+                final_h = int(base_w / aspect_ratio_val)
+            
+            return final_w, final_h
+        else:
+            # Use specified aspect ratio
+            return base_w, base_h
+
+
+def main():
     import sys
     
     if len(sys.argv) < 2:

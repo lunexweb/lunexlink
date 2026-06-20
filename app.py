@@ -9,6 +9,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import tempfile
 import uuid
+from watermark_remover import WatermarkRemover
 
 app = Flask(__name__)
 
@@ -166,6 +167,7 @@ def download_video():
     try:
         data = request.get_json()
         url = data.get('url')
+        remove_watermark = data.get('remove_watermark', False)
         
         if not url:
             return jsonify({'error': 'URL is required'}), 400
@@ -178,10 +180,22 @@ def download_video():
         downloader = VideoDownloader(app.config['UPLOAD_FOLDER'])
         file_path = downloader.download(url)
         
+        # Remove watermark if requested
+        if remove_watermark:
+            try:
+                print("🔧 Removing watermark...")
+                remover = WatermarkRemover()
+                file_path = remover.remove_watermark(file_path)
+                print("✅ Watermark removed!")
+            except Exception as e:
+                print(f"⚠️ Watermark removal failed: {e}")
+                # Continue with original file if watermark removal fails
+        
         return jsonify({
             'success': True,
             'filename': os.path.basename(file_path),
-            'download_url': f'/api/file/{os.path.basename(file_path)}'
+            'download_url': f'/api/file/{os.path.basename(file_path)}',
+            'message': 'Video processed successfully!'
         })
     
     except Exception as e:

@@ -77,6 +77,26 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+        }
+
+        .checkbox-text {
+            color: #333;
+            font-size: 14px;
+        }
+
         .btn {
             width: 100%;
             padding: 16px;
@@ -138,6 +158,21 @@
             display: none;
         }
 
+        .progress-text {
+            text-align: center;
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .progress-info {
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
         .progress-bar {
             width: 100%;
             height: 8px;
@@ -150,14 +185,8 @@
             height: 100%;
             background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
             width: 0%;
-            transition: width 0.3s;
-            animation: progress 1.5s infinite;
-        }
-
-        @keyframes progress {
-            0% { width: 0%; }
-            50% { width: 100%; }
-            100% { width: 0%; }
+            transition: width 0.5s;
+            border-radius: 10px;
         }
 
         .features {
@@ -252,15 +281,24 @@
                 >
             </div>
 
+            <div class="input-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="removeWatermark" name="remove_watermark">
+                    <span class="checkbox-text">🎨 Remove watermarks automatically (AI-powered)</span>
+                </label>
+            </div>
+
             <button type="submit" class="btn" id="downloadBtn">
                 Download Video
             </button>
         </form>
 
         <div class="progress" id="progress">
+            <p class="progress-text" id="progressText">Processing video...</p>
             <div class="progress-bar">
-                <div class="progress-fill"></div>
+                <div class="progress-fill" id="progressFill"></div>
             </div>
+            <p class="progress-info" id="progressInfo">This may take 2-3 minutes for watermark removal</p>
         </div>
 
         <div class="status" id="status"></div>
@@ -269,9 +307,11 @@
             <h3>Features</h3>
             <div class="feature-list">
                 <div class="feature-item">High quality downloads</div>
+                <div class="feature-item">Smart AI watermark removal</div>
                 <div class="feature-item">1000+ sites supported</div>
                 <div class="feature-item">Fast & secure</div>
-                <div class="feature-item">No registration needed</div>
+                <div class="feature-item">Corner watermark cleanup</div>
+                <div class="feature-item">Free & open source</div>
             </div>
         </div>
     </div>
@@ -286,6 +326,7 @@
             e.preventDefault();
 
             const url = document.getElementById('videoUrl').value;
+            const removeWatermark = document.getElementById('removeWatermark').checked;
 
             if (!url) {
                 showStatus('Please enter a video URL', 'error');
@@ -294,9 +335,43 @@
 
             // Show progress
             downloadBtn.disabled = true;
-            downloadBtn.textContent = 'Downloading...';
+            downloadBtn.textContent = removeWatermark ? 'Downloading & Removing Watermark...' : 'Downloading...';
             progress.style.display = 'block';
             status.style.display = 'none';
+
+            // Simulate progress updates
+            let progressPercent = 0;
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const progressInfo = document.getElementById('progressInfo');
+            
+            if (removeWatermark) {
+                progressText.textContent = 'Step 1: Downloading video...';
+                progressInfo.textContent = 'This may take 2-3 minutes for watermark removal';
+            } else {
+                progressText.textContent = 'Downloading video...';
+                progressInfo.textContent = 'Please wait...';
+            }
+            
+            // Simulate progress
+            const progressInterval = setInterval(() => {
+                if (progressPercent < 90) {
+                    progressPercent += Math.random() * 10;
+                    if (progressPercent > 90) progressPercent = 90;
+                    progressFill.style.width = progressPercent + '%';
+                    
+                    if (removeWatermark) {
+                        if (progressPercent < 30) {
+                            progressText.textContent = 'Step 1: Downloading video... ' + Math.floor(progressPercent) + '%';
+                        } else if (progressPercent < 90) {
+                            progressText.textContent = 'Step 2: Removing watermarks... ' + Math.floor(progressPercent) + '%';
+                            progressInfo.textContent = 'Processing frames - please be patient';
+                        }
+                    } else {
+                        progressText.textContent = 'Downloading... ' + Math.floor(progressPercent) + '%';
+                    }
+                }
+            }, 500);
 
             try {
                 const response = await fetch('/api/download', {
@@ -304,25 +379,35 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ url }),
+                    body: JSON.stringify({ 
+                        url: url,
+                        remove_watermark: removeWatermark 
+                    }),
                 });
 
                 const data = await response.json();
+                
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Complete! 100%';
 
                 if (response.ok) {
-                    showStatus(
-                        `✅ Video downloaded successfully! <a href="${data.download_url}" class="download-link">Download File</a>`,
-                        'success'
-                    );
+                    const message = removeWatermark 
+                        ? '✅ Video downloaded & watermark removed! <a href="${data.download_url}" class="download-link">Download File</a>'
+                        : '✅ Video downloaded successfully! <a href="${data.download_url}" class="download-link">Download File</a>';
+                    showStatus(message.replace('${data.download_url}', data.download_url), 'success');
                 } else {
                     showStatus(`❌ Error: ${data.error}`, 'error');
                 }
             } catch (error) {
+                clearInterval(progressInterval);
                 showStatus(`❌ Error: ${error.message}`, 'error');
             } finally {
                 downloadBtn.disabled = false;
                 downloadBtn.textContent = 'Download Video';
-                progress.style.display = 'none';
+                setTimeout(() => {
+                    progress.style.display = 'none';
+                }, 3000);
             }
         });
 

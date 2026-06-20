@@ -148,6 +148,117 @@
             border-color: #667eea;
         }
 
+        .dropzone {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .dropzone:hover {
+            border-color: #764ba2;
+            background: linear-gradient(135deg, #f0f2ff 0%, #e8ebff 100%);
+            transform: translateY(-2px);
+        }
+
+        .dropzone.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .dropzone-content {
+            pointer-events: none;
+        }
+
+        .dropzone-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .dropzone-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .dropzone-subtext {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .dropzone-formats {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .file-input-hidden {
+            display: none;
+        }
+
+        .file-preview {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0f2ff;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .file-preview.show {
+            display: block;
+        }
+
+        .file-preview-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-icon {
+            font-size: 32px;
+        }
+
+        .file-details {
+            text-align: left;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .file-remove {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .file-remove:hover {
+            background: #cc0000;
+        }
+
         .btn {
             width: 100%;
             padding: 16px;
@@ -316,8 +427,8 @@
     <div class="container">
         <div class="header">
             <div class="icon">🎬</div>
-            <h1>Video Downloader & Image Upscaler</h1>
-            <p>Download videos from any website or upscale images to 4K/8K</p>
+            <h1>Media Tools</h1>
+            <p>Download videos & upscale images/videos to 1080p/4K/8K</p>
         </div>
 
         <form id="downloadForm">
@@ -345,40 +456,50 @@
         </form>
 
         <div class="divider">
-            <span>OR</span>
+            <span>OR UPSCALE MEDIA</span>
         </div>
 
         <form id="upscaleForm" enctype="multipart/form-data">
             <div class="input-group">
-                <label for="imageFile">Upload Image to Upscale</label>
-                <input 
-                    type="file" 
-                    id="imageFile" 
-                    name="image" 
-                    accept="image/*"
-                    class="file-input"
-                >
+                <label>Upload Image or Video</label>
+                <div class="dropzone" id="dropzone">
+                    <div class="dropzone-content">
+                        <div class="dropzone-icon">📤</div>
+                        <p class="dropzone-text">Drag & drop your file here</p>
+                        <p class="dropzone-subtext">or click to browse</p>
+                        <p class="dropzone-formats">Images: JPG, PNG, WebP | Videos: MP4, MOV, AVI</p>
+                    </div>
+                    <input 
+                        type="file" 
+                        id="mediaFile" 
+                        name="file" 
+                        accept="image/*,video/*"
+                        class="file-input-hidden"
+                    >
+                </div>
+                <div id="filePreview" class="file-preview"></div>
             </div>
 
             <div class="input-group">
                 <label for="resolution">Target Resolution</label>
                 <select id="resolution" name="resolution" class="select-input">
+                    <option value="720p">720p HD (1280x720)</option>
+                    <option value="1080p" selected>1080p Full HD (1920x1080)</option>
                     <option value="2k">2K (2560x1440)</option>
-                    <option value="4k" selected>4K (3840x2160)</option>
+                    <option value="4k">4K (3840x2160)</option>
                     <option value="8k">8K (7680x4320)</option>
-                    <option value="hd">HD (1920x1080)</option>
                 </select>
             </div>
 
             <div class="input-group">
                 <label class="checkbox-label">
                     <input type="checkbox" id="enhance" name="enhance" checked>
-                    <span class="checkbox-text">✨ Enhance quality (sharpen, denoise, color)</span>
+                    <span class="checkbox-text">✨ Enhance quality (sharpen, denoise, improve colors)</span>
                 </label>
             </div>
 
             <button type="submit" class="btn" id="upscaleBtn">
-                Upscale Image
+                Upscale Media
             </button>
         </form>
 
@@ -395,10 +516,10 @@
         <div class="features">
             <h3>Features</h3>
             <div class="feature-list">
-                <div class="feature-item">High quality downloads</div>
-                <div class="feature-item">AI image upscaling</div>
-                <div class="feature-item">1000+ sites supported</div>
-                <div class="feature-item">2K/4K/8K upscale</div>
+                <div class="feature-item">Video downloading</div>
+                <div class="feature-item">Image & video upscaling</div>
+                <div class="feature-item">1080p/2K/4K/8K support</div>
+                <div class="feature-item">Drag & drop upload</div>
                 <div class="feature-item">Fast & secure</div>
                 <div class="feature-item">Free & open source</div>
             </div>
@@ -509,31 +630,101 @@
         // Image upscaler form
         const upscaleForm = document.getElementById('upscaleForm');
         const upscaleBtn = document.getElementById('upscaleBtn');
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('mediaFile');
+        const filePreview = document.getElementById('filePreview');
+
+        // Drag and drop functionality
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => {
+                dropzone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => {
+                dropzone.classList.remove('dragover');
+            }, false);
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                showFilePreview(files[0]);
+            }
+        });
+
+        dropzone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                showFilePreview(e.target.files[0]);
+            }
+        });
+
+        function showFilePreview(file) {
+            const isVideo = file.type.startsWith('video/');
+            const isImage = file.type.startsWith('image/');
+            const icon = isVideo ? '🎬' : isImage ? '🖼️' : '📄';
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+
+            filePreview.innerHTML = `
+                <div class="file-preview-content">
+                    <div class="file-info">
+                        <div class="file-icon">${icon}</div>
+                        <div class="file-details">
+                            <div class="file-name">${file.name}</div>
+                            <div class="file-size">${sizeMB} MB</div>
+                        </div>
+                    </div>
+                    <button type="button" class="file-remove" onclick="removeFile()">Remove</button>
+                </div>
+            `;
+            filePreview.classList.add('show');
+        }
+
+        window.removeFile = function() {
+            fileInput.value = '';
+            filePreview.classList.remove('show');
+            filePreview.innerHTML = '';
+        };
 
         upscaleForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const fileInput = document.getElementById('imageFile');
             const resolution = document.getElementById('resolution').value;
             const enhance = document.getElementById('enhance').checked;
 
             if (!fileInput.files[0]) {
-                showStatus('Please select an image file', 'error');
+                showStatus('Please select a file', 'error');
                 return;
             }
 
             // Show progress
             upscaleBtn.disabled = true;
-            upscaleBtn.textContent = 'Upscaling Image...';
+            const isVideo = fileInput.files[0].type.startsWith('video/');
+            upscaleBtn.textContent = isVideo ? 'Upscaling Video...' : 'Upscaling Image...';
             progress.style.display = 'block';
             status.style.display = 'none';
             progressText.textContent = 'Upscaling to ' + resolution.toUpperCase() + '...';
-            progressInfo.textContent = 'Enhancing quality...';
+            progressInfo.textContent = isVideo ? 'This may take a few minutes...' : 'Enhancing quality...';
             progressFill.style.width = '50%';
 
             // Create form data
             const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
+            formData.append('file', fileInput.files[0]);
             formData.append('resolution', resolution);
             formData.append('enhance', enhance);
 
@@ -548,18 +739,24 @@
                 progressText.textContent = 'Complete! 100%';
 
                 if (response.ok) {
+                    const mediaType = data.type === 'video' ? 'Video' : 'Image';
                     showStatus(
-                        `✅ Image upscaled to ${resolution.toUpperCase()}! <a href="${data.download_url}" class="download-link">Download Image</a>`,
+                        `✅ ${mediaType} upscaled to ${resolution.toUpperCase()}! <a href="${data.download_url}" class="download-link">Download File</a>`,
                         'success'
                     );
+                    removeFile();
                 } else {
-                    showStatus(`❌ Error: ${data.error}`, 'error');
+                    if (data.suggestion) {
+                        showStatus(`❌ ${data.error}<br><small>${data.suggestion}</small>`, 'error');
+                    } else {
+                        showStatus(`❌ Error: ${data.error}`, 'error');
+                    }
                 }
             } catch (error) {
                 showStatus(`❌ Error: ${error.message}`, 'error');
             } finally {
                 upscaleBtn.disabled = false;
-                upscaleBtn.textContent = 'Upscale Image';
+                upscaleBtn.textContent = 'Upscale Media';
                 setTimeout(() => {
                     progress.style.display = 'none';
                 }, 3000);

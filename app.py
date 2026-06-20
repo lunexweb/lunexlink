@@ -11,6 +11,7 @@ import tempfile
 import uuid
 from io import BytesIO
 from image_upscaler import ImageUpscaler
+from video_upscaler import VideoUpscaler
 
 # Watermark remover only works locally, not on Vercel
 WATERMARK_ENABLED = False
@@ -284,39 +285,80 @@ def get_info():
 
 
 @app.route('/api/upscale', methods=['POST'])
-def upscale_image():
+def upscale_media():
     try:
         # Check if file was uploaded
-        if 'image' not in request.files:
-            return jsonify({'error': 'No image file provided'}), 400
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
         
-        file = request.files['image']
+        file = request.files['file']
         
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
-        # Get resolution parameter
-        resolution = request.form.get('resolution', '4k')
+        # Get parameters
+        resolution = request.form.get('resolution', '1080p')
         enhance = request.form.get('enhance', 'true').lower() == 'true'
         
-        # Read image bytes
-        image_bytes = file.read()
+        # Determine file type
+        filename = file.filename.lower()
+        is_video = any(filename.endswith(ext) for ext in ['.mp4', '.avi', '.mov', '.mkv', '.webm'])
+        is_image = any(filename.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.bmp'])
         
-        # Upscale image
-        upscaler = ImageUpscaler()
-        output_bytes, filename = upscaler.upscale_from_bytes(image_bytes, resolution, enhance)
+        if not is_video and not is_image:
+            return jsonify({'error': 'Unsupported file type. Use images or videos.'}), 400
         
-        # Save to temp directory
-        output_path = app.config['UPLOAD_FOLDER'] / filename
-        with open(output_path, 'wb') as f:
-            f.write(output_bytes)
+        if is_image:
+            # Image upscaling
+            image_bytes = file.read()
+            upscaler = ImageUpscaler()
+            output_bytes, output_filename = upscaler.upscale_from_bytes(image_bytes, resolution, enhance)
+            
+            output_path = app.config['UPLOAD_FOLDER'] / output_filename
+            with open(output_path, 'wb') as f:
+                f.write(output_bytes)
+            
+            return jsonify({
+                'success': True,
+                'filename': output_filename,
+                'download_url': f'/api/file/{output_filename}',
+                'message': f'Image upscaled to {resolution.upper()}!',
+                'type': 'image'
+            })
         
-        return jsonify({
-            'success': True,
-            'filename': filename,
-            'download_url': f'/api/file/{filename}',
-            'message': f'Image upscaled to {resolution}!'
-        })
+        elif is_video:
+            # Video upscaling (requires FFmpeg)
+            # Save uploaded video first
+            temp_input = app.config['UPLOAD_FOLDER'] / f"temp_{uuid.uuid4().hex[:8]}_{file.filename}"
+            file.save(temp_input)
+            
+            try:
+                upscaler = VideoUpscaler()
+                output_path = upscaler.upscale(temp_input, resolution, enhance)
+                output_filename = output_path.name
+                
+                # Clean up temp input
+                temp_input.unlink()
+                
+                return jsonify({
+                    'success': True,
+                    'filename': output_filename,
+                    'download_url': f'/api/file/{output_filename}',
+                    'message': f'Video upscaled to {resolution.upper()}!',
+                    'type': 'video'
+                })
+            except Exception as e:
+                # Clean up on error
+                if temp_input.exists():
+                    temp_input.unlink()
+                
+                # Check if FFmpeg error
+                if 'FFmpeg' in str(e):
+                    return jsonify({
+                        'error': 'Video upscaling requires FFmpeg. This feature works on local server only.',
+                        'suggestion': 'Try uploading an image instead, or run the app locally.'
+                    }), 500
+                raise
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500

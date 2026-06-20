@@ -9,7 +9,14 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import tempfile
 import uuid
-from watermark_remover import WatermarkRemover
+
+# Watermark remover only works locally, not on Vercel
+WATERMARK_ENABLED = False
+try:
+    from watermark_remover import WatermarkRemover
+    WATERMARK_ENABLED = True
+except ImportError:
+    print("⚠️ Watermark removal disabled (OpenCV not available on this platform)")
 
 app = Flask(__name__)
 
@@ -180,8 +187,8 @@ def download_video():
         downloader = VideoDownloader(app.config['UPLOAD_FOLDER'])
         file_path = downloader.download(url)
         
-        # Remove watermark if requested
-        if remove_watermark:
+        # Remove watermark if requested and available
+        if remove_watermark and WATERMARK_ENABLED:
             try:
                 print("🔧 Removing watermark...")
                 remover = WatermarkRemover()
@@ -190,12 +197,14 @@ def download_video():
             except Exception as e:
                 print(f"⚠️ Watermark removal failed: {e}")
                 # Continue with original file if watermark removal fails
+        elif remove_watermark and not WATERMARK_ENABLED:
+            print("⚠️ Watermark removal not available on this platform")
         
         return jsonify({
             'success': True,
             'filename': os.path.basename(file_path),
             'download_url': f'/api/file/{os.path.basename(file_path)}',
-            'message': 'Video processed successfully!'
+            'message': 'Video processed successfully!' + (' (watermark removal not available on serverless)' if remove_watermark and not WATERMARK_ENABLED else '')
         })
     
     except Exception as e:

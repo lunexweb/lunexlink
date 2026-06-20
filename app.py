@@ -298,6 +298,7 @@ def upscale_media():
         
         # Get parameters
         resolution = request.form.get('resolution', '1080p')
+        aspect_ratio = request.form.get('aspectRatio', 'original')
         enhance = request.form.get('enhance', 'true').lower() == 'true'
         
         # Determine file type
@@ -312,7 +313,7 @@ def upscale_media():
             # Image upscaling
             image_bytes = file.read()
             upscaler = ImageUpscaler()
-            output_bytes, output_filename = upscaler.upscale_from_bytes(image_bytes, resolution, enhance)
+            output_bytes, output_filename = upscaler.upscale_from_bytes(image_bytes, resolution, enhance, aspect_ratio)
             
             output_path = app.config['UPLOAD_FOLDER'] / output_filename
             with open(output_path, 'wb') as f:
@@ -322,7 +323,7 @@ def upscale_media():
                 'success': True,
                 'filename': output_filename,
                 'download_url': f'/api/file/{output_filename}',
-                'message': f'Image upscaled to {resolution.upper()}!',
+                'message': f'Image upscaled to {resolution.upper()} ({aspect_ratio})!',
                 'type': 'image'
             })
         
@@ -334,7 +335,7 @@ def upscale_media():
             
             try:
                 upscaler = VideoUpscaler()
-                output_path = upscaler.upscale(temp_input, resolution, enhance)
+                output_path = upscaler.upscale(temp_input, resolution, enhance, aspect_ratio)
                 output_filename = output_path.name
                 
                 # Clean up temp input
@@ -344,7 +345,7 @@ def upscale_media():
                     'success': True,
                     'filename': output_filename,
                     'download_url': f'/api/file/{output_filename}',
-                    'message': f'Video upscaled to {resolution.upper()}!',
+                    'message': f'Video upscaled to {resolution.upper()} ({aspect_ratio})!',
                     'type': 'video'
                 })
             except Exception as e:
@@ -353,10 +354,10 @@ def upscale_media():
                     temp_input.unlink()
                 
                 # Check if FFmpeg error
-                if 'FFmpeg' in str(e):
+                if 'not installed' in str(e).lower() or 'ffmpeg' in str(e).lower():
                     return jsonify({
-                        'error': 'Video upscaling requires FFmpeg. This feature works on local server only.',
-                        'suggestion': 'Try uploading an image instead, or run the app locally.'
+                        'error': 'FFmpeg not installed',
+                        'suggestion': 'To upscale videos locally: 1) Install FFmpeg from https://ffmpeg.org/download.html, or 2) Use "choco install ffmpeg" (Windows), or 3) Upload an image instead.'
                     }), 500
                 raise
     

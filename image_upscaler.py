@@ -123,7 +123,7 @@ class ImageUpscaler:
         output_name = f"{input_path.stem}_{resolution}{input_path.suffix}"
         return input_path.parent / output_name
     
-    def upscale_from_bytes(self, image_bytes, target_resolution='4k', enhance=True):
+    def upscale_from_bytes(self, image_bytes, target_resolution='4k', enhance=True, aspect_ratio='original'):
         """
         Upscale image from bytes (for web uploads)
         
@@ -133,14 +133,16 @@ class ImageUpscaler:
         # Open image from bytes
         img = Image.open(io.BytesIO(image_bytes))
         
-        # Get target dimensions
-        target_width, target_height = self._get_target_dimensions(target_resolution, img.size)
+        # Get target dimensions with aspect ratio
+        target_width, target_height = self._get_target_dimensions(target_resolution, img.size, aspect_ratio)
         
-        # Upscale
-        if target_width > img.size[0] or target_height > img.size[1]:
+        # Upscale or resize
+        if aspect_ratio == 'original':
+            # Maintain aspect ratio
             img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
         else:
-            img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+            # Crop/pad to exact aspect ratio
+            img = self._fit_to_aspect_ratio(img, target_width, target_height)
         
         # Enhance
         if enhance:
@@ -156,12 +158,32 @@ class ImageUpscaler:
             extension = 'jpg'
         
         output_buffer.seek(0)
-        filename = f"upscaled_{target_resolution}.{extension}"
+        aspect_suffix = f"_{aspect_ratio.replace(':', 'x')}" if aspect_ratio != 'original' else ""
+        filename = f"upscaled_{target_resolution}{aspect_suffix}.{extension}"
         
         return output_buffer.getvalue(), filename
-
-
-def main():
+    
+    def _fit_to_aspect_ratio(self, img, target_w, target_h):
+        """Fit image to exact aspect ratio by cropping or padding"""
+        orig_w, orig_h = img.size
+        target_ratio = target_w / target_h
+        orig_ratio = orig_w / orig_h
+        
+        if orig_ratio > target_ratio:
+            # Image is wider - crop width
+            new_w = int(orig_h * target_ratio)
+            left = (orig_w - new_w) // 2
+            img = img.crop((left, 0, left + new_w, orig_h))
+        elif orig_ratio < target_ratio:
+            # Image is taller - crop height
+            new_h = int(orig_w / target_ratio)
+            top = (orig_h - new_h) // 2
+            img = img.crop((0, top, orig_w, top + new_h))
+        
+        # Now resize to target
+        return img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+    
+    def _get_target_dimensions(self, target_resolution, original_size, aspect_ratio='original'):
     import sys
     
     if len(sys.argv) < 2:

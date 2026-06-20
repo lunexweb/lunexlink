@@ -492,6 +492,18 @@
             </div>
 
             <div class="input-group">
+                <label for="aspectRatio">Aspect Ratio</label>
+                <select id="aspectRatio" name="aspectRatio" class="select-input">
+                    <option value="original" selected>Original (Keep aspect ratio)</option>
+                    <option value="16:9">16:9 (YouTube, TV)</option>
+                    <option value="9:16">9:16 (TikTok, Reels, Stories)</option>
+                    <option value="1:1">1:1 (Instagram Square)</option>
+                    <option value="4:3">4:3 (Classic TV)</option>
+                    <option value="21:9">21:9 (Ultrawide)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
                 <label class="checkbox-label">
                     <input type="checkbox" id="enhance" name="enhance" checked>
                     <span class="checkbox-text">✨ Enhance quality (sharpen, denoise, improve colors)</span>
@@ -705,6 +717,7 @@
             e.preventDefault();
 
             const resolution = document.getElementById('resolution').value;
+            const aspectRatio = document.getElementById('aspectRatio').value;
             const enhance = document.getElementById('enhance').checked;
 
             if (!fileInput.files[0]) {
@@ -726,6 +739,7 @@
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
             formData.append('resolution', resolution);
+            formData.append('aspectRatio', aspectRatio);
             formData.append('enhance', enhance);
 
             try {

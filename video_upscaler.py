@@ -13,7 +13,7 @@ class VideoUpscaler:
     def __init__(self):
         self.supported_formats = ['.mp4', '.avi', '.mov', '.mkv', '.webm']
     
-    def upscale(self, video_path, target_resolution='1080p', enhance=True):
+    def upscale(self, video_path, target_resolution='1080p', enhance=True, aspect_ratio='original'):
         """
         Upscale video to target resolution using FFmpeg
         
@@ -21,25 +21,39 @@ class VideoUpscaler:
             video_path: Path to input video
             target_resolution: '1080p', '2k', '4k'
             enhance: Apply quality enhancements
+            aspect_ratio: 'original', '16:9', '9:16', '1:1', '4:3', '21:9'
         
         Returns:
             Path to upscaled video
         """
         video_path = Path(video_path)
         
-        # Get target dimensions
-        width, height = self._get_target_dimensions(target_resolution)
+        # Get target dimensions based on resolution and aspect ratio
+        width, height = self._get_target_dimensions(target_resolution, aspect_ratio)
         
-        print(f"🎬 Upscaling video to {width}x{height}")
+        print(f"🎬 Upscaling video to {width}x{height} ({aspect_ratio})")
         
         # Output path
-        output_path = video_path.parent / f"{video_path.stem}_{target_resolution}{video_path.suffix}"
+        aspect_suffix = f"_{aspect_ratio.replace(':', 'x')}" if aspect_ratio != 'original' else ""
+        output_path = video_path.parent / f"{video_path.stem}_{target_resolution}{aspect_suffix}{video_path.suffix}"
+        
+        # Build scale filter based on aspect ratio
+        if aspect_ratio == 'original':
+            # Maintain original aspect ratio
+            scale_filter = f'scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:flags=lanczos'
+        else:
+            # Force specific aspect ratio (may crop or stretch)
+            scale_filter = f'scale={width}:{height}:force_original_aspect_ratio=decrease,setsar=1,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2'
+        
+        # Add enhancement filters
+        if enhance:
+            scale_filter += ',unsharp=5:5:1.0:5:5:0.0'
         
         # Build FFmpeg command
         cmd = [
             'ffmpeg',
             '-i', str(video_path),
-            '-vf', f'scale={width}:{height}:flags=lanczos',
+            '-vf', scale_filter,
             '-c:v', 'libx264',
             '-preset', 'slow',  # Better quality
             '-crf', '18',  # High quality (0-51, lower = better)
@@ -48,30 +62,52 @@ class VideoUpscaler:
             str(output_path)
         ]
         
-        # Add enhancement filters
-        if enhance:
-            filters = f'scale={width}:{height}:flags=lanczos,unsharp=5:5:1.0:5:5:0.0'
-            cmd[cmd.index('-vf') + 1] = filters
-        
         try:
             print("⚙️ Processing with FFmpeg...")
-            subprocess.run(cmd, check=True, capture_output=True)
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             print(f"✅ Upscaled video saved: {output_path}")
             return output_path
-        except subprocess.CalledProcessError as e:
-            raise Exception(f"FFmpeg error: {e.stderr.decode()[:200]}")
         except FileNotFoundError:
-            raise Exception("FFmpeg not installed. Please install FFmpeg.")
+            raise Exception("FFmpeg not installed. Install from: https://ffmpeg.org/download.html")
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr if e.stderr else str(e)
+            raise Exception(f"FFmpeg error: {error_msg[:300]}")
     
-    def _get_target_dimensions(self, resolution):
-        """Get width and height for target resolution"""
-        resolutions = {
-            '720p': (1280, 720),
-            '1080p': (1920, 1080),
-            '2k': (2560, 1440),
-            '4k': (3840, 2160),
+    def _get_target_dimensions(self, resolution, aspect_ratio='original'):
+        """Get width and height for target resolution and aspect ratio"""
+        # Base resolutions (height-based)
+        base_heights = {
+            '720p': 720,
+            '1080p': 1080,
+            '2k': 1440,
+            '4k': 2160,
+            '8k': 4320,
         }
-        return resolutions.get(resolution.lower(), (1920, 1080))
+        
+        height = base_heights.get(resolution.lower(), 1080)
+        
+        # Calculate width based on aspect ratio
+        aspect_ratios = {
+            'original': None,  # Will be calculated from source
+            '16:9': 16/9,
+            '9:16': 9/16,
+            '1:1': 1/1,
+            '4:3': 4/3,
+            '21:9': 21/9,
+        }
+        
+        ratio = aspect_ratios.get(aspect_ratio, 16/9)
+        
+        if ratio:
+            width = int(height * ratio)
+            # Make sure dimensions are even (required by many codecs)
+            width = width if width % 2 == 0 else width + 1
+            height = height if height % 2 == 0 else height + 1
+        else:
+            # Original aspect ratio - use standard 16:9
+            width = int(height * 16/9)
+        
+        return width, height
 
 
 def main():
